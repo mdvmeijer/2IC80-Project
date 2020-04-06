@@ -15,6 +15,11 @@ from subprocess import PIPE
 
 
 class Ui_MainWindow(object):
+    def __init__(self):
+        self.is_monitoring = False
+        self.mon_adapter = ""
+        self.status_label = QtWidgets.QLabel("")
+
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(864, 587)
@@ -33,7 +38,7 @@ class Ui_MainWindow(object):
         self.mon_box = QtWidgets.QComboBox(self.centralwidget)
         self.mon_box.setObjectName("comboBox")
         self.insert_mon_adapters()
-        self.mon_box.activated.connect(self.enable_monitoring)
+        # self.mon_box.activated.connect(self.enable_monitoring)
         self.toolbar_layout.addWidget(self.mon_box)
 
         self.label_3 = QtWidgets.QLabel(self.centralwidget)
@@ -110,32 +115,65 @@ class Ui_MainWindow(object):
         self.menubar.setObjectName("menubar")
         self.menuOptions = QtWidgets.QMenu(self.menubar)
         self.menuOptions.setObjectName("menuOptions")
-        self.menuStart_Monitoring = QtWidgets.QMenu(self.menubar)
-        self.menuStart_Monitoring.setObjectName("menuStart_Monitoring")
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
         self.statusbar.setObjectName("statusbar")
         MainWindow.setStatusBar(self.statusbar)
-        self.actionSet_adapter = QtWidgets.QAction(MainWindow)
-        self.actionSet_adapter.setStatusTip("")
-        self.actionSet_adapter.setObjectName("actionSet_adapter")
+
+        self.mon_action = QtWidgets.QAction(MainWindow)
+        self.mon_action.setStatusTip("Start monitoring")
+        self.mon_action.setObjectName("mon_action")
+        self.mon_action.triggered.connect(self.enable_monitoring)
+
         self.actionSet_Output_File = QtWidgets.QAction(MainWindow)
         self.actionSet_Output_File.setObjectName("actionSet_Output_File")
-        self.menuOptions.addAction(self.actionSet_adapter)
+        self.menuOptions.addAction(self.mon_action)
         self.menuOptions.addAction(self.actionSet_Output_File)
         self.menubar.addAction(self.menuOptions.menuAction())
-        self.menubar.addAction(self.menuStart_Monitoring.menuAction())
+
+        self.statusbar.addWidget(self.status_label)
 
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
-    def enable_monitoring(self, adapter_index):
-        """enable monitoring mode of the network card that is identified by string 'adapter_name'"""
+    def enable_monitoring(self):
+        """enable monitoring mode of the network card that is selected in mon_box"""
 
-        password = input("Please enter your password:")
-        process = subprocess.Popen(['sudo', 'airmon-ng', 'start', self.adapters[adapter_index]], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+        # password = input("Please enter your password:")
+        adapter = self.mon_box.currentText()
+        process = subprocess.Popen(['sudo', 'airmon-ng', 'start', adapter], stdin=PIPE, stdout=PIPE, stderr=PIPE)
 
-        process.communicate(input=password.encode())
+        self.mon_box.setEnabled(False)
+
+        self.mon_action.triggered.connect(self.disable_monitoring)
+        self.mon_action.setStatusTip("Stop monitoring")
+
+        self.mon_adapter = adapter
+
+        self.is_monitoring = True
+        self.retranslateUi(MainWindow)
+
+        # process.communicate(input=password.encode())
+        self.status_label.setText("Monitoring...")
+
+    def disable_monitoring(self):
+        """disable monitoring mode of the network card that has previously been set to monitoring mode"""
+
+        # password = input("Please enter your password:")
+        process = subprocess.Popen(['sudo', 'airmon-ng', 'stop', self.mon_adapter + "mon"], stdin=PIPE, stdout=PIPE,
+                                   stderr=PIPE)
+
+        self.mon_box.setEnabled(True)
+
+        self.mon_action.triggered.connect(self.enable_monitoring)
+        self.mon_action.setStatusTip("Start monitoring")
+
+        self.is_monitoring = False
+        self.retranslateUi(MainWindow)
+
+        # process.communicate(input=password.encode())
+        self.status_label.setText("")
+
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -154,9 +192,13 @@ class Ui_MainWindow(object):
         self.label.setText(_translate("MainWindow", "SSID\'s to mimic"))
         self.label_5.setText(_translate("MainWindow", "Clients connected to mimicked AP"))
         self.menuOptions.setTitle(_translate("MainWindow", "Options"))
-        self.menuStart_Monitoring.setTitle(_translate("MainWindow", "Start Monitoring"))
-        self.actionSet_adapter.setText(_translate("MainWindow", "Set Adapter"))
-        self.actionSet_adapter.setShortcut(_translate("MainWindow", "Ctrl+D"))
+
+        if not self.is_monitoring:
+            self.mon_action.setText(_translate("MainWindow", "Start Monitoring"))
+        else:
+            self.mon_action.setText(_translate("MainWindow", "Stop Monitoring"))
+
+        self.mon_action.setShortcut(_translate("MainWindow", "Ctrl+D"))
         self.actionSet_Output_File.setText(_translate("MainWindow", "Set Output Path"))
         self.actionSet_Output_File.setShortcut(_translate("MainWindow", "Ctrl+O"))
 
