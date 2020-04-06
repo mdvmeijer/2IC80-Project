@@ -1,22 +1,22 @@
-import tkinter as tk
-from subprocess import call
+import sys
 
-root = tk.Tk()
-
-
-def myClick():
-    myLabel = tk.Label(root, text="I clicked the fucking button")
-    myLabel.grid(row=1, column=1)
+from PyQt5 import QtWidgets
+from PyQt5.QtWidgets import QApplication, QMainWindow
 
 
-myButton = tk.Button(root, text="Click Me!", command=myClick)
+def window():
+    app = QApplication(sys.argv)
+    win = QMainWindow()
+    win.setGeometry(200, 200, 300, 300)
+    win.setWindowTitle("Tech with Tim")
 
-# Creating a Label Widget
-myLabel1 = tk.Label(root, text="Hello World!")
-myLabel2 = tk.Label(root, text="My name is AAAA")
-# Shoving it onto the screen
-myLabel1.grid(row=0, column=1)
-myLabel2.grid(row=1, column=0)
-myButton.grid(row=0, column=0)
+    label = QtWidgets.QLabel(win)
+    label.setText("this is a label")
+    label.move(50, 50)
 
-root.mainloop()
+    win.show()
+    sys.exit(app.exec_())
+
+
+window()
+

@@ -54,5 +54,5 @@ def start_monitoring(adapter_name):
     # print(process.stdout.read())
 
 
-enable_monitoring("wlp3s0")
-start_monitoring("wlp3s0mon")
+disable_monitoring("wlp3s0mon")
+# start_monitoring("wlp3s0mon")
