@@ -65,13 +65,10 @@ class Ui_MainWindow(object):
         self.label_6 = QtWidgets.QLabel(self.layoutWidget_2)
         self.label_6.setObjectName("label_6")
         self.verticalLayout_6.addWidget(self.label_6)
-        self.listWidget_6 = QtWidgets.QListWidget(self.layoutWidget_2)
-        self.listWidget_6.setObjectName("listWidget_6")
-        item = QtWidgets.QListWidgetItem()
-        self.listWidget_6.addItem(item)
-        item = QtWidgets.QListWidgetItem()
-        self.listWidget_6.addItem(item)
-        self.verticalLayout_6.addWidget(self.listWidget_6)
+        self.packet_list = QtWidgets.QListWidget(self.layoutWidget_2)
+        self.packet_list.setObjectName("listWidget_6")
+        self.packet_list.addItem("test")
+        self.verticalLayout_6.addWidget(self.packet_list)
         self.layoutWidget_3 = QtWidgets.QWidget(self.splitter_2)
         self.layoutWidget_3.setObjectName("layoutWidget_3")
         self.verticalLayout_7 = QtWidgets.QVBoxLayout(self.layoutWidget_3)
@@ -181,13 +178,9 @@ class Ui_MainWindow(object):
         self.label_2.setText(_translate("MainWindow", "Mon. adapter:"))
         self.label_3.setText(_translate("MainWindow", "AP adapter:"))
         self.label_6.setText(_translate("MainWindow", "Sniffed probe requests"))
-        __sortingEnabled = self.listWidget_6.isSortingEnabled()
-        self.listWidget_6.setSortingEnabled(False)
-        item = self.listWidget_6.item(0)
-        item.setText(_translate("MainWindow", "dfdfadfdaff"))
-        item = self.listWidget_6.item(1)
-        item.setText(_translate("MainWindow", "fdfadfdafdfasdff"))
-        self.listWidget_6.setSortingEnabled(__sortingEnabled)
+        __sortingEnabled = self.packet_list.isSortingEnabled()
+        self.packet_list.setSortingEnabled(False)
+        self.packet_list.setSortingEnabled(__sortingEnabled)
         self.label_7.setText(_translate("MainWindow", "AP\'s in vicinity"))
         self.label.setText(_translate("MainWindow", "SSID\'s to mimic"))
         self.label_5.setText(_translate("MainWindow", "Clients connected to mimicked AP"))
@@ -231,6 +224,9 @@ class Ui_MainWindow(object):
     def insert_mon_adapters(self):
         for adapter in self.get_ip_adapters():
             self.mon_box.addItem(adapter)
+
+    def insert_packet(self, packet):
+        self.packet_list.addItem(packet)
 
 
 if __name__ == "__main__":
