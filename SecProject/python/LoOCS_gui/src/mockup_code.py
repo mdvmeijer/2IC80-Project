@@ -226,6 +226,7 @@ class Ui_MainWindow(object):
             self.mon_box.addItem(adapter)
 
     def insert_packet(self, packet):
+        """TODO give sequence/index number to packet and store it in dictionary"""
         self.packet_list.addItem(packet)
 
 
