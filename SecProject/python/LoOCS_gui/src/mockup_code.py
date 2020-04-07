@@ -253,7 +253,7 @@ class Ui_MainWindow(object):
                        "driver=nl80211\n"
                        "ssid={}\n"
                        "hw_mode=g\n"
-                       "channel=[AP Channel]\n"
+                       "channel=7\n"
                        "macaddr_acl=0\n"
                        "ignore_broadcast_ssid=0\n"
                        "auth_algs=1\n"
