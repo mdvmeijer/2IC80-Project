@@ -5,7 +5,7 @@
 # Created by: PyQt5 UI code generator 5.14.1
 #
 # WARNING! All changes made in this file will be lost!
-
+import time
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
@@ -16,9 +16,14 @@ from subprocess import PIPE
 
 class Ui_MainWindow(object):
     def __init__(self):
-        self.is_monitoring = False
+        self.is_sniffing = False
+        self.has_ap = False
         self.mon_adapter = ""
-        self.status_label = QtWidgets.QLabel("")
+        self.ap_adapter = ""
+        self.mon_label = QtWidgets.QLabel("")
+        self.ap_label = QtWidgets.QLabel("")
+        self.adapters = self.get_ip_adapters()
+        self.ssid = "hackerman1233"
 
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
@@ -33,12 +38,9 @@ class Ui_MainWindow(object):
         self.label_2.setObjectName("label_2")
         self.toolbar_layout.addWidget(self.label_2)
 
-        self.adapters = self.get_ip_adapters()
-
         self.mon_box = QtWidgets.QComboBox(self.centralwidget)
         self.mon_box.setObjectName("comboBox")
         self.insert_mon_adapters()
-        # self.mon_box.activated.connect(self.enable_monitoring)
         self.toolbar_layout.addWidget(self.mon_box)
 
         self.label_3 = QtWidgets.QLabel(self.centralwidget)
@@ -47,6 +49,7 @@ class Ui_MainWindow(object):
 
         self.ap_box = QtWidgets.QComboBox(self.centralwidget)
         self.ap_box.setObjectName("comboBox_2")
+        self.insert_ap_adapters()
         self.toolbar_layout.addWidget(self.ap_box)
 
         self.toolbar_layout.setSizeConstraint(QtWidgets.QLayout.SetMaximumSize)
@@ -120,57 +123,26 @@ class Ui_MainWindow(object):
         self.mon_action = QtWidgets.QAction(MainWindow)
         self.mon_action.setStatusTip("Start monitoring")
         self.mon_action.setObjectName("mon_action")
-        self.mon_action.triggered.connect(self.enable_monitoring)
+        self.mon_action.triggered.connect(self.start_sniffing)
+
+        self.ap_action = QtWidgets.QAction(MainWindow)
+        self.ap_action.setStatusTip("Start access point")
+        self.ap_action.setObjectName("ap_action")
+        self.ap_action.triggered.connect(self.start_ap)
 
         self.actionSet_Output_File = QtWidgets.QAction(MainWindow)
         self.actionSet_Output_File.setObjectName("actionSet_Output_File")
+
         self.menuOptions.addAction(self.mon_action)
+        self.menuOptions.addAction(self.ap_action)
         self.menuOptions.addAction(self.actionSet_Output_File)
         self.menubar.addAction(self.menuOptions.menuAction())
 
-        self.statusbar.addWidget(self.status_label)
+        self.statusbar.addWidget(self.mon_label)
+        self.statusbar.addWidget(self.ap_label)
 
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
-
-    def enable_monitoring(self):
-        """enable monitoring mode of the network card that is selected in mon_box"""
-
-        # password = input("Please enter your password:")
-        adapter = self.mon_box.currentText()
-        process = subprocess.Popen(['sudo', 'airmon-ng', 'start', adapter], stdin=PIPE, stdout=PIPE, stderr=PIPE)
-
-        self.mon_box.setEnabled(False)
-
-        self.mon_action.triggered.connect(self.disable_monitoring)
-        self.mon_action.setStatusTip("Stop monitoring")
-
-        self.mon_adapter = adapter
-
-        self.is_monitoring = True
-        self.retranslateUi(MainWindow)
-
-        # process.communicate(input=password.encode())
-        self.status_label.setText("Monitoring...")
-
-    def disable_monitoring(self):
-        """disable monitoring mode of the network card that has previously been set to monitoring mode"""
-
-        # password = input("Please enter your password:")
-        process = subprocess.Popen(['sudo', 'airmon-ng', 'stop', self.mon_adapter + "mon"], stdin=PIPE, stdout=PIPE,
-                                   stderr=PIPE)
-
-        self.mon_box.setEnabled(True)
-
-        self.mon_action.triggered.connect(self.enable_monitoring)
-        self.mon_action.setStatusTip("Start monitoring")
-
-        self.is_monitoring = False
-        self.retranslateUi(MainWindow)
-
-        # process.communicate(input=password.encode())
-        self.status_label.setText("")
-
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -186,14 +158,54 @@ class Ui_MainWindow(object):
         self.label_5.setText(_translate("MainWindow", "Clients connected to mimicked AP"))
         self.menuOptions.setTitle(_translate("MainWindow", "Options"))
 
-        if not self.is_monitoring:
+        if not self.is_sniffing:
             self.mon_action.setText(_translate("MainWindow", "Start Monitoring"))
         else:
             self.mon_action.setText(_translate("MainWindow", "Stop Monitoring"))
 
+        if not self.has_ap:
+            self.ap_action.setText(_translate("MainWindow", "Start Access Point"))
+        else:
+            self.ap_action.setText(_translate("MainWindow", "Stop Access Point"))
+
         self.mon_action.setShortcut(_translate("MainWindow", "Ctrl+D"))
         self.actionSet_Output_File.setText(_translate("MainWindow", "Set Output Path"))
         self.actionSet_Output_File.setShortcut(_translate("MainWindow", "Ctrl+O"))
+
+    def start_sniffing(self):
+        self.mon_adapter = self.mon_box.currentText()
+        self.enable_monitoring(self.mon_adapter)
+        self.is_sniffing = True
+
+        self.mon_label.setText("Monitoring...")
+        self.mon_action.setStatusTip("Stop monitoring")
+        self.mon_box.setEnabled(False)
+
+        self.mon_action.triggered.connect(self.stop_sniffing)
+
+        self.retranslateUi(MainWindow)
+
+    def stop_sniffing(self):
+        self.disable_monitoring(self.mon_adapter)
+        self.is_sniffing = False
+
+        self.mon_label.setText("")
+        self.mon_action.setStatusTip("Start monitoring")
+        self.mon_box.setEnabled(True)
+
+        self.mon_action.triggered.connect(self.start_sniffing)
+
+        self.retranslateUi(MainWindow)
+
+    def enable_monitoring(self, adapter):
+        """enable monitoring mode of the network card that is defined by 'adapter'"""
+        print(adapter)
+        process = subprocess.Popen(['sudo', 'airmon-ng', 'start', adapter], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+
+    def disable_monitoring(self, adapter):
+        """disable monitoring mode of the network card that is defined by 'adapter'"""
+        process = subprocess.Popen(['sudo', 'airmon-ng', 'stop', self.mon_adapter + "mon"], stdin=PIPE, stdout=PIPE,
+                                   stderr=PIPE)
 
     def get_ip_adapters(self):
         """returns a list of available network adapters (currently limited to UNIX-based systems)"""
@@ -221,17 +233,71 @@ class Ui_MainWindow(object):
         for adapter in self.get_ip_adapters():
             self.mon_box.addItem(adapter)
 
-    def insert_mon_adapters(self):
+    def insert_ap_adapters(self):
         for adapter in self.get_ip_adapters():
-            self.mon_box.addItem(adapter)
+            self.ap_box.addItem(adapter)
 
     def insert_packet(self, packet):
         """TODO give sequence/index number to packet and store it in dictionary"""
         self.packet_list.addItem(packet)
 
+    def start_ap(self):
+        """enable access point mode of the network card that is selected in ap_box"""
+        self.ap_adapter = self.ap_box.currentText()
+        self.enable_monitoring(self.ap_adapter)
+
+        time.sleep(5)
+
+        with open("hostapd.conf", "w") as file:
+            file.write("interface={}\n"
+                       "driver=nl80211\n"
+                       "ssid={}\n"
+                       "hw_mode=g\n"
+                       "channel=[AP Channel]\n"
+                       "macaddr_acl=0\n"
+                       "ignore_broadcast_ssid=0\n"
+                       "auth_algs=1\n"
+                       "wpa=0".format(self.ap_adapter + "mon", self.ssid))
+
+        process = subprocess.Popen(['sudo', 'hostapd', 'hostapd.conf'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+
+        with open("dnsmasq.conf", "w") as file:
+            file.write("interface={}\n"
+                       "dhcp-range=192.168.1.2,192.168.1.30,255.255.255.0,12h\n"
+                       "dhcp-option=3,192.168.1.1\n"
+                       "dhcp-option=6,192.168.1.1\n"
+                       "server=8.8.8.8\n"
+                       "log-queries\n"
+                       "log-dhcp\n"
+                       "listen-address=127.0.0.1".format(self.ap_adapter + "mon"))
+
+        process = subprocess.Popen(['sudo', 'ifconfig', self.ap_adapter + "mon", "up", "192.168.1.1", "netmask",
+                                    "255.255.255.0"], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+
+        process = subprocess.Popen(['sudo', 'route', "add", "-net", "192.168.1.0", "netmask",
+                                    "255.255.255.0", "gw", "192.168.1.1"], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+
+        process = subprocess.Popen(['sudo', 'dnsmasq', "-C", "dnsmasq.conf", "-d"], stdin=PIPE, stdout=PIPE,
+                                   stderr=PIPE)
+
+        self.ap_box.setEnabled(False)
+
+        self.ap_action.triggered.connect(self.stop_ap)
+        self.ap_action.setStatusTip("Stop access point")
+
+        self.has_ap = True
+
+        self.mon_label.setText("--Access Point ACTIVE--")
+
+        self.retranslateUi(MainWindow)
+
+    def stop_ap(self):
+        print("NOT IMPLEMENTED YET")
+
 
 if __name__ == "__main__":
     import sys
+
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow()
