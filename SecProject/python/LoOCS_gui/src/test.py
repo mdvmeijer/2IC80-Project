@@ -1,0 +1,3 @@
+dictio = {}
+
+print(dictio["hey"])
