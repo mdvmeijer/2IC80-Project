@@ -1,4 +1,4 @@
-from collections import namedtuple, Set
+from collections import namedtuple
 from scapy.layers.dot11 import Dot11Beacon, Dot11, Dot11Elt
 from scapy.layers.eap import EAPOL
 from scapy.all import *
@@ -8,13 +8,27 @@ import os
 
 
 networks = {}
+probes = {}
 clients = {}
 Network = namedtuple("Network", "BSSID SSID Signal_dBm Channel Crypto Clients")
+Probe = namedtuple("Probe", "Time Source ProbeSSID")
 
 
 def pkt_received(pkt):
+    # frame with type 0 (management frame) and subtype 4 (probe request frame)
+    if pkt.getlayer(Dot11).type == 0 and pkt.getlayer(Dot11).subtype == 4:
+        time = datetime.now().isoformat()
+
+        src_mac = pkt[Dot11].addr2
+        probe_ssid = str(pkt[Dot11].info)[2:-1]
+
+        if len(probe_ssid) == 0:  # it is an undirected probe request
+            probe_ssid = "BROADCAST (UNDIRECTED)"
+
+        probes[time[11:]] = Probe(time[11:], src_mac, probe_ssid)
+
     # frame with type 0 (management frame) and subtype 8 (beacon frame)
-    if pkt.getlayer(Dot11).type == 0 and pkt.getlayer(Dot11).subtype == 8:
+    elif pkt.getlayer(Dot11).type == 0 and pkt.getlayer(Dot11).subtype == 8:
 
         # get the bssid (mac address) of the access point
         bssid = pkt[Dot11].addr2
@@ -73,7 +87,7 @@ def pkt_received(pkt):
 def print_all():
     while True:
         os.system("clear")
-        for key, value in networks.items():
+        for key, value in probes.items():
             print(key, ' : ', value)
         time.sleep(0.5)
 
@@ -91,10 +105,10 @@ def change_channel():
 if __name__ == "__main__":
     # interface name, check using iwconfig
     interface = "wlp3s0mon"
-    # # start the thread that prints all the networks
-    # printer = Thread(target=print_all)
-    # printer.daemon = True
-    # printer.start()
+    # start the thread that prints all the networks
+    printer = Thread(target=print_all)
+    printer.daemon = True
+    printer.start()
     # start the channel changer
     channel_changer = Thread(target=change_channel)
     channel_changer.daemon = True
