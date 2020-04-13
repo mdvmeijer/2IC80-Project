@@ -1,16 +1,13 @@
 # 2IC80-Project
 Final project for 2IC80 Lab on Offensive Computer Security.
 
-# This tool is Linux-only
+This tool is Linux-only.
 
-Dependencies:
+The preliminary main file is 'mockup_code.py'
 
--hostapd
-
--dnsmasq
-
--iptables
-
--scapy
-
+Dependencies:  
+-hostapd  
+-dnsmasq  
+-iptables  
+-scapy  
 -subprocess
